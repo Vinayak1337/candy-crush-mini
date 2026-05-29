@@ -38,7 +38,7 @@ const App: FC<AppProps> = ({ setSize, setOffset, setTarget, width }) => {
 	);
 
 	const toggleStarted = (value: Boolean) => {
-		sessionStorage.setItem('app', String(value));
+		sessionStorage.setItem('started', String(value));
 		setStarted(value);
 	};
 
