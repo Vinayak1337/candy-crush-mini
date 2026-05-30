@@ -21,7 +21,13 @@ import {
 } from '../../Assets/gameLogic';
 import { findHint, Move } from '../../Assets/hint';
 import { LEVELS, Level, status, movesLeft, progress } from '../../Assets/level';
-import { GameContainer, HUD, BoardGrid, Overlay } from './Gamepage.styled';
+import {
+	GameContainer,
+	TopBar,
+	Board as BoardGrid,
+	Controls,
+	Overlay
+} from './Gamepage.styled';
 
 // The logic layer is candy-agnostic: it just shuffles opaque string keys. Here
 // we bind those keys to the candy artwork. generateBoard / resolve / reshuffle
@@ -36,6 +42,9 @@ const CANDY = {
 } as const;
 const KEYS = Object.keys(CANDY);
 const seed = () => (Date.now() ^ Math.floor(Math.random() * 0xffff)) % 100000;
+
+// Three star milestones along the score bar, like the real game.
+const STAR_AT = [0.4, 0.7, 1];
 
 /** A freshly generated board guaranteed to be playable (no matches, has moves). */
 const freshBoard = (): Board => {
@@ -57,7 +66,8 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 	const state = useMemo(() => ({ score, movesUsed }), [score, movesUsed]);
 	const gameStatus = status(level, state);
 	const left = movesLeft(level, state);
-	const pct = Math.round(progress(level, state) * 100);
+	const frac = progress(level, state);
+	const stars = STAR_AT.filter(t => frac >= t).length;
 	const nextLevel = LEVELS.find(l => l.id === level.id + 1);
 
 	const startLevel = useCallback((lvl: Level) => {
@@ -123,47 +133,36 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 
 	return (
 		<GameContainer>
-			<HUD>
-				<h1>Candy Crush Mini</h1>
-				<div className='level'>Level {level.id}</div>
-
-				<div className='stat'>
-					<span>Score</span>
-					<strong>{formatScore(score)}</strong>
-				</div>
-				<div className='stat'>
-					<span>Target</span>
-					<strong>{formatScore(level.targetScore)}</strong>
-				</div>
-				<div className='stat'>
-					<span>Moves left</span>
-					<strong className={left <= 3 ? 'low' : ''}>{left}</strong>
+			<TopBar>
+				<div className='moves'>
+					<span className={`num ${left <= 3 ? 'low' : ''}`}>{left}</span>
+					<span className='lbl'>moves</span>
 				</div>
 
-				<div className='bar'>
-					<div className='fill' style={{ width: `${pct}%` }} />
+				<div className='score'>
+					<div className='value'>{formatScore(score)}</div>
+					<div className='track'>
+						<div className='fill' style={{ width: `${frac * 100}%` }} />
+						{STAR_AT.map((t, idx) => (
+							<span
+								key={t}
+								className={`star ${idx < stars ? 'on' : ''}`}
+								style={{ left: `${t * 100}%` }}>
+								★
+							</span>
+						))}
+					</div>
+					<div className='goal'>target {formatScore(level.targetScore)}</div>
 				</div>
-				<div className='pct'>{pct}% to target</div>
 
-				{combo && <div className='combo'>{combo}</div>}
-
-				<div className='actions'>
-					<button onClick={showHint} disabled={busy}>
-						Hint
-					</button>
-					<button onClick={doShuffle} disabled={busy}>
-						Shuffle
-					</button>
-					<button onClick={() => startLevel(level)} disabled={busy}>
-						Restart
-					</button>
-					<button className='quit' onClick={() => toggleStarted(false)}>
-						Quit
-					</button>
+				<div className='level'>
+					<span className='lbl'>level</span>
+					<span className='num'>{level.id}</span>
 				</div>
-			</HUD>
+			</TopBar>
 
 			<BoardGrid>
+				{combo && <div className='combo'>{combo}</div>}
 				{board.map((cell, i) => {
 					const cls = [
 						'cell',
@@ -189,17 +188,22 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 				{gameStatus !== 'playing' && (
 					<Overlay className={gameStatus}>
 						<div className='card'>
-							<h2>
-								{gameStatus === 'won' ? 'Level Cleared!' : 'Out of Moves'}
-							</h2>
+							<div className='stars'>
+								{[0, 1, 2].map(s => (
+									<span key={s} className={s < stars ? 'on' : ''}>
+										★
+									</span>
+								))}
+							</div>
+							<h2>{gameStatus === 'won' ? 'Sweet!' : 'Out of Moves'}</h2>
 							<p>
-								Score <strong>{formatScore(score)}</strong> /{' '}
+								<strong>{formatScore(score)}</strong> /{' '}
 								{formatScore(level.targetScore)}
 							</p>
 							<div className='overlay-actions'>
 								{gameStatus === 'won' && nextLevel && (
 									<button onClick={() => startLevel(nextLevel)}>
-										Next Level →
+										Next Level
 									</button>
 								)}
 								{gameStatus === 'won' && !nextLevel && (
@@ -218,6 +222,28 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 					</Overlay>
 				)}
 			</BoardGrid>
+
+			<Controls>
+				<button className='act hint' onClick={showHint} disabled={busy}>
+					<b>?</b>
+					<span>Hint</span>
+				</button>
+				<button className='act shuffle' onClick={doShuffle} disabled={busy}>
+					<b>⇄</b>
+					<span>Shuffle</span>
+				</button>
+				<button
+					className='act restart'
+					onClick={() => startLevel(level)}
+					disabled={busy}>
+					<b>↻</b>
+					<span>Restart</span>
+				</button>
+				<button className='act quit' onClick={() => toggleStarted(false)}>
+					<b>⌂</b>
+					<span>Home</span>
+				</button>
+			</Controls>
 		</GameContainer>
 	);
 };

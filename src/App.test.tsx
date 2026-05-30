@@ -3,14 +3,16 @@ import Gamepage from './Components/GamePage/Gamepage';
 import { WIDTH } from './Assets/board';
 
 // Smoke test for the fully wired game: the Gamepage should mount, render the
-// HUD and a complete WIDTH*WIDTH board of candy cells from the logic layer.
-test('renders the game board and HUD', () => {
+// candy HUD (moves / level / target), the control buttons, and a complete
+// WIDTH*WIDTH board of candy cells from the logic layer.
+test('renders the game board, HUD and controls', () => {
 	render(<Gamepage toggleStarted={() => undefined} />);
 
-	expect(screen.getByText(/Candy Crush Mini/i)).toBeInTheDocument();
-	expect(screen.getByText('Score')).toBeInTheDocument();
-	expect(screen.getByText('Target')).toBeInTheDocument();
-	expect(screen.getByText('Moves left')).toBeInTheDocument();
+	expect(screen.getByText('moves')).toBeInTheDocument();
+	expect(screen.getByText('level')).toBeInTheDocument();
+	expect(screen.getByText(/target/i)).toBeInTheDocument();
+	expect(screen.getByText('Hint')).toBeInTheDocument();
+	expect(screen.getByText('Shuffle')).toBeInTheDocument();
 
 	// Every cell is a button labelled with its candy (no empty cells on a
 	// freshly generated, gravity-filled board).
