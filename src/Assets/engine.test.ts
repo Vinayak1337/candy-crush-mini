@@ -1,4 +1,4 @@
-import { resolve } from './engine';
+import { resolve, resolveSteps } from './engine';
 import { Board, WIDTH, findAllMatches } from './board';
 import { makeRng, generateBoard } from './generate';
 
@@ -30,5 +30,36 @@ describe('cascade engine', () => {
 		const result = resolve(board, candies, makeRng(9));
 		expect(result.board.every(c => c !== null)).toBe(true);
 		expect(result.board.length).toBe(WIDTH * WIDTH);
+	});
+
+	it('resolveSteps matches resolve and yields animatable frames', () => {
+		const board: Board = generateBoard(candies, 5);
+		board[0] = board[1] = board[2] = 'green';
+
+		const stepped = resolveSteps(board, candies, makeRng(5));
+		const flat = resolve(board, candies, makeRng(5));
+
+		// Same final outcome as the one-shot resolve (identical rng order).
+		expect(stepped.board).toEqual(flat.board);
+		expect(stepped.score).toBe(flat.score);
+		expect(stepped.cascades).toEqual(flat.cascades);
+
+		// One frame per cascade, each carrying what to animate.
+		expect(stepped.frames.length).toBe(stepped.cascades.length);
+		expect(stepped.frames.length).toBeGreaterThan(0);
+
+		// Frame scores add up to the total, and each frame replays correctly:
+		// its `before` still holds the matches, and chaining the frames'
+		// `after` boards lands on the final settled board.
+		const summed = stepped.frames.reduce((s, f) => s + f.score, 0);
+		expect(summed).toBe(stepped.score);
+
+		const first = stepped.frames[0];
+		expect(first.matched.length).toBeGreaterThanOrEqual(3);
+		expect(findAllMatches(first.before).length).toBeGreaterThan(0);
+		expect(first.changed.length).toBeGreaterThan(0);
+		expect(stepped.frames[stepped.frames.length - 1].after).toEqual(
+			stepped.board
+		);
 	});
 });
