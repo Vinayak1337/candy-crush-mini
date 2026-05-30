@@ -58,7 +58,7 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 	const [movesUsed, setMovesUsed] = useState(0);
 	const [selected, setSelected] = useState<number | null>(null);
 	const [hint, setHint] = useState<Move | null>(null);
-	const [invalid, setInvalid] = useState<number | null>(null);
+	const [invalid, setInvalid] = useState<Set<number>>(new Set());
 	const [clearing, setClearing] = useState<Set<number>>(new Set());
 	const [falling, setFalling] = useState<Set<number>>(new Set());
 	const [combo, setCombo] = useState('');
@@ -89,6 +89,7 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 		setCombo('');
 		setClearing(new Set());
 		setFalling(new Set());
+		setInvalid(new Set());
 		busyRef.current = false;
 		setBusy(false);
 	}, []);
@@ -138,9 +139,10 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 			if (busyRef.current || gameStatus !== 'playing') return;
 			if (!areAdjacent(a, b)) return;
 			if (!isValidMove(boardRef.current, a, b)) {
+				// Reject: vibrate both candies left-right to say "can't match that".
 				setSelected(null);
-				setInvalid(b);
-				window.setTimeout(() => setInvalid(null), 280);
+				setInvalid(new Set([a, b]));
+				window.setTimeout(() => setInvalid(new Set()), 420);
 				return;
 			}
 			animateMove(a, b);
@@ -241,7 +243,7 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 					const cls = [
 						'cell',
 						selected === i ? 'selected' : '',
-						invalid === i ? 'invalid' : '',
+						invalid.has(i) ? 'invalid' : '',
 						clearing.has(i) ? 'clearing' : '',
 						falling.has(i) ? 'falling' : '',
 						hint && (hint.a === i || hint.b === i) ? 'hint' : ''

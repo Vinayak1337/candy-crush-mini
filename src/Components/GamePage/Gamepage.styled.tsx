@@ -13,10 +13,16 @@ const fallIn = keyframes`
 	75%  { transform: translateY(8%); }
 	100% { transform: translateY(0); opacity: 1; }
 `;
+// Reject wobble: a quick left-right vibration meaning "you can't match that".
 const shake = keyframes`
 	0%, 100% { transform: translateX(0); }
-	25% { transform: translateX(-5px); }
-	75% { transform: translateX(5px); }
+	12% { transform: translateX(-7px); }
+	26% { transform: translateX(7px); }
+	40% { transform: translateX(-6px); }
+	54% { transform: translateX(6px); }
+	68% { transform: translateX(-4px); }
+	82% { transform: translateX(4px); }
+	92% { transform: translateX(-2px); }
 `;
 const pop = keyframes`
 	0% { transform: scale(0.5); opacity: 0; }
@@ -219,8 +225,9 @@ export const Board = styled.div`
 			box-shadow: 0 0 14px rgba(95, 208, 104, 0.85);
 		}
 		&.invalid {
-			animation: ${shake} 0.28s ease;
+			animation: ${shake} 0.42s ease;
 			border-color: #ff5d73;
+			box-shadow: 0 0 12px rgba(255, 93, 115, 0.7);
 		}
 		/* matched candies animate out, then fresh ones drop in */
 		&.clearing img {
@@ -246,34 +253,54 @@ export const Board = styled.div`
 `;
 
 /* ----------------------------------------------------------------- controls */
+/* The control bar mirrors the top bar: same glossy purple panel, and the
+   buttons reuse the round jelly-badge treatment so the HUD reads as one set. */
 export const Controls = styled.div`
+	width: min(94vw, 600px);
 	display: flex;
-	gap: 14px;
-	flex-wrap: wrap;
-	justify-content: center;
+	justify-content: space-around;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 18px;
+	border-radius: 22px;
+	background: linear-gradient(180deg, #7b3ff2 0%, #5a23c8 100%);
+	box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35),
+		inset 0 -5px 10px rgba(0, 0, 0, 0.3), 0 8px 22px rgba(0, 0, 0, 0.45);
 
 	.act {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 4px;
-		width: 76px;
-		padding: 10px 6px;
+		gap: 7px;
+		padding: 0;
 		border: none;
-		border-radius: 18px;
+		background: none;
 		color: #fff;
-		font-family: 'Segoe UI', system-ui, sans-serif;
-		font-size: 12px;
-		letter-spacing: 0.3px;
 		cursor: pointer;
-		box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45),
-			inset 0 -5px 8px rgba(0, 0, 0, 0.3), 0 5px 12px rgba(0, 0, 0, 0.4);
 		transition: transform 0.06s, filter 0.15s;
 
 		b {
-			font-size: 22px;
+			width: 52px;
+			height: 52px;
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 23px;
 			line-height: 1;
+			text-shadow: 0 2px 2px rgba(0, 0, 0, 0.4);
+			box-shadow: inset 0 3px 2px rgba(255, 255, 255, 0.55),
+				inset 0 -6px 8px rgba(0, 0, 0, 0.35), 0 4px 8px rgba(0, 0, 0, 0.35);
 		}
+		span {
+			font-family: 'Segoe UI', system-ui, sans-serif;
+			font-size: 9.5px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 1.1px;
+			opacity: 0.92;
+		}
+
 		&:hover:not(:disabled) {
 			filter: brightness(1.08);
 		}
@@ -281,23 +308,32 @@ export const Controls = styled.div`
 			transform: translateY(2px);
 		}
 		&:disabled {
-			opacity: 0.5;
+			opacity: 0.45;
 			cursor: default;
 		}
 	}
-	.hint {
-		background: linear-gradient(180deg, #ffd76b, #f5a623);
+
+	.hint b {
+		background: radial-gradient(circle at 50% 30%, #ffe79a, #f5a623);
 		color: #5a3a00;
 		text-shadow: none;
 	}
-	.shuffle {
-		background: linear-gradient(180deg, #76e08a, #2fae54);
+	.shuffle b {
+		background: radial-gradient(circle at 50% 30%, #8fe7a1, #2fae54);
 	}
-	.restart {
-		background: linear-gradient(180deg, #6fd6ff, #1f8bd6);
+	.restart b {
+		background: radial-gradient(circle at 50% 30%, #6fd6ff, #1f8bd6);
 	}
-	.quit {
-		background: linear-gradient(180deg, #ff8fb8, #e23d7a);
+	.quit b {
+		background: radial-gradient(circle at 50% 30%, #ff8fb8, #e23d7a);
+	}
+
+	@media (max-width: 480px) {
+		.act b {
+			width: 46px;
+			height: 46px;
+			font-size: 20px;
+		}
 	}
 `;
 
