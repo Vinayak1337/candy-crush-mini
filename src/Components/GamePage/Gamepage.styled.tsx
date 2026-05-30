@@ -2,9 +2,16 @@ import styled, { keyframes } from 'styled-components';
 
 const CANDY = `'Candice', 'Segoe UI', system-ui, sans-serif`;
 
-const drop = keyframes`
-	from { transform: translateY(-22px) scale(0.8); opacity: 0; }
-	to   { transform: translateY(0) scale(1); opacity: 1; }
+// Matched candies shrink and spin away; survivors and fresh candies drop in.
+const clearOut = keyframes`
+	0%   { transform: scale(1) rotate(0); opacity: 1; }
+	100% { transform: scale(0) rotate(45deg); opacity: 0; }
+`;
+const fallIn = keyframes`
+	0%   { transform: translateY(-150%); opacity: 0; }
+	55%  { opacity: 1; }
+	75%  { transform: translateY(8%); }
+	100% { transform: translateY(0); opacity: 1; }
 `;
 const shake = keyframes`
 	0%, 100% { transform: translateX(0); }
@@ -180,7 +187,10 @@ export const Board = styled.div`
 		border-radius: 12px;
 		background: rgba(255, 255, 255, 0.05);
 		box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
-		cursor: pointer;
+		cursor: grab;
+		overflow: hidden;
+		touch-action: none;
+		user-select: none;
 		transition: background 0.12s, border-color 0.12s, transform 0.08s;
 
 		img {
@@ -188,12 +198,15 @@ export const Board = styled.div`
 			height: 88%;
 			object-fit: contain;
 			filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45));
-			animation: ${drop} 0.26s ease;
 			pointer-events: none;
+			user-select: none;
 		}
 
 		&:hover {
 			background: rgba(255, 255, 255, 0.12);
+		}
+		&:active {
+			cursor: grabbing;
 		}
 		&.selected {
 			border-color: #ffd23f;
@@ -208,6 +221,13 @@ export const Board = styled.div`
 		&.invalid {
 			animation: ${shake} 0.28s ease;
 			border-color: #ff5d73;
+		}
+		/* matched candies animate out, then fresh ones drop in */
+		&.clearing img {
+			animation: ${clearOut} 0.22s ease forwards;
+		}
+		&.falling img {
+			animation: ${fallIn} 0.34s cubic-bezier(0.34, 1.25, 0.64, 1);
 		}
 	}
 
