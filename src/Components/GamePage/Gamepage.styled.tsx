@@ -84,13 +84,12 @@ export const TopBar = styled.div`
 			color: #ffdf6b;
 		}
 		.lbl {
-			font-family: 'Segoe UI', system-ui, sans-serif;
-			font-size: 8.5px;
-			font-weight: 700;
-			text-transform: uppercase;
-			letter-spacing: 1.2px;
-			opacity: 0.92;
-			margin-top: 3px;
+			font-family: ${CANDY};
+			font-size: 13px;
+			text-transform: lowercase;
+			letter-spacing: 0.3px;
+			opacity: 0.95;
+			margin-top: 2px;
 		}
 	}
 	.moves {
@@ -146,13 +145,12 @@ export const TopBar = styled.div`
 		}
 
 		.goal {
-			font-family: 'Segoe UI', system-ui, sans-serif;
+			font-family: ${CANDY};
 			margin-top: 6px;
-			font-size: 11px;
-			font-weight: 600;
-			text-transform: uppercase;
-			letter-spacing: 0.8px;
-			color: rgba(255, 255, 255, 0.85);
+			font-size: 15px;
+			text-transform: lowercase;
+			letter-spacing: 0.3px;
+			color: rgba(255, 255, 255, 0.9);
 		}
 	}
 
@@ -293,12 +291,11 @@ export const Controls = styled.div`
 				inset 0 -6px 8px rgba(0, 0, 0, 0.35), 0 4px 8px rgba(0, 0, 0, 0.35);
 		}
 		span {
-			font-family: 'Segoe UI', system-ui, sans-serif;
-			font-size: 9.5px;
-			font-weight: 700;
-			text-transform: uppercase;
-			letter-spacing: 1.1px;
-			opacity: 0.92;
+			font-family: ${CANDY};
+			font-size: 14px;
+			text-transform: lowercase;
+			letter-spacing: 0.3px;
+			opacity: 0.95;
 		}
 
 		&:hover:not(:disabled) {
@@ -408,12 +405,12 @@ export const Overlay = styled.div`
 		justify-content: center;
 
 		button {
-			padding: 11px 20px;
+			padding: 11px 22px;
 			border: none;
 			border-radius: 14px;
-			font-family: 'Segoe UI', system-ui, sans-serif;
-			font-weight: 700;
-			font-size: 14px;
+			font-family: ${CANDY};
+			font-size: 19px;
+			letter-spacing: 0.3px;
 			cursor: pointer;
 			background: linear-gradient(180deg, #76e08a, #2fae54);
 			color: #06280f;
