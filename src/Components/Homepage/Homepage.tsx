@@ -18,7 +18,7 @@ const Homepage: FC<HomepageProps> = ({ toggleStarted }) => {
 					className='settings'
 					onClick={() => alert('Under construction')}>
 					<span className='shine' />
-					<SettingsIcon className='icon' />
+					<img className='icon' src={SettingsIcon} alt='Settings' />
 				</button>
 			</div>
 			<div className='middle'>

@@ -6,7 +6,7 @@ import { persistCombined } from './RootReducer';
 
 const middlewares = [];
 
-if (process.env.NODE_ENV === 'development') middlewares.push(logger);
+if (import.meta.env.DEV) middlewares.push(logger);
 
 export const Store = createStore(
 	persistCombined,

@@ -3,6 +3,7 @@ import {
 	indexToCoord,
 	coordToIndex,
 	inBounds,
+	findMatchGroups,
 	findAllMatches,
 	hasMatch,
 	swap,
@@ -41,9 +42,40 @@ describe('match detection', () => {
 		expect(findAllMatches(b)).toEqual([0, 1, 2]);
 	});
 
+	it('detects connected Z-shaped same-color neighbours', () => {
+		const b: Board = Array(WIDTH * WIDTH).fill(null);
+		b[0] = b[1] = b[coordToIndex(1, 1)] = b[coordToIndex(1, 2)] =
+			'purple';
+
+		expect(findMatchGroups(b)).toEqual([[0, 1, 10, 11]]);
+		expect(findAllMatches(b)).toEqual([0, 1, 10, 11]);
+	});
+
+	it('detects connected T-shaped same-color neighbours as one group', () => {
+		const b: Board = Array(WIDTH * WIDTH).fill(null);
+		[
+			coordToIndex(0, 1),
+			coordToIndex(1, 0),
+			coordToIndex(1, 1),
+			coordToIndex(1, 2),
+			coordToIndex(2, 1)
+		].forEach(i => (b[i] = 'green'));
+
+		expect(findMatchGroups(b)).toEqual([[1, 9, 10, 11, 19]]);
+		expect(findAllMatches(b)).toEqual([1, 9, 10, 11, 19]);
+	});
+
 	it('ignores runs of two', () => {
 		const b: Board = Array(WIDTH * WIDTH).fill(null);
 		b[0] = b[1] = 'blue';
+		expect(hasMatch(b)).toBe(false);
+	});
+
+	it('does not connect candies diagonally', () => {
+		const b: Board = Array(WIDTH * WIDTH).fill(null);
+		b[0] = b[coordToIndex(1, 1)] = b[coordToIndex(2, 2)] = 'yellow';
+
+		expect(findMatchGroups(b)).toEqual([]);
 		expect(hasMatch(b)).toBe(false);
 	});
 });

@@ -24,6 +24,19 @@ describe('cascade engine', () => {
 		expect(findAllMatches(result.board).length).toBe(0);
 	});
 
+	it('clears a connected Z-shaped group as one match', () => {
+		const board: Board = Array(WIDTH * WIDTH).fill(null);
+		board[0] = board[1] = board[WIDTH + 1] = board[WIDTH + 2] =
+			'purple';
+
+		const result = resolveSteps(board, candies, makeRng(11));
+
+		expect(result.frames[0].matched).toEqual([0, 1, 10, 11]);
+		expect(result.frames[0].groups).toEqual([4]);
+		expect(result.cascades[0]).toEqual([4]);
+		expect(result.cleared).toBeGreaterThanOrEqual(4);
+	});
+
 	it('produces a fully filled board (no nulls left)', () => {
 		const board: Board = generateBoard(candies, 9);
 		board[0] = board[1] = board[2] = 'blue';

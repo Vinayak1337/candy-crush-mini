@@ -21,49 +21,61 @@ export const coordToIndex = (row: number, col: number): number =>
 export const inBounds = (row: number, col: number): boolean =>
 	row >= 0 && row < WIDTH && col >= 0 && col < WIDTH;
 
+const orthogonalNeighbours = (index: number): number[] => {
+	const { row, col } = indexToCoord(index);
+	const coords = [
+		[row - 1, col],
+		[row + 1, col],
+		[row, col - 1],
+		[row, col + 1]
+	];
+	return coords
+		.filter(([r, c]) => inBounds(r, c))
+		.map(([r, c]) => coordToIndex(r, c));
+};
+
 /**
- * Find every run of >= 3 identical candies in a single line (row or column).
- * `line` is the ordered list of flat indices that make up that line.
- * Returns the flat indices that belong to a winning run.
+ * Find every connected same-color group of >= 3 candies.
+ * Connectivity is only orthogonal: left, right, top, and bottom. Diagonals do
+ * not connect groups.
  */
-const matchesInLine = (board: Board, line: number[]): number[] => {
-	const hits: number[] = [];
-	let runStart = 0;
-	for (let i = 1; i <= line.length; i++) {
-		const same =
-			i < line.length &&
-			board[line[i]] !== null &&
-			board[line[i]] === board[line[runStart]];
-		if (!same) {
-			if (i - runStart >= 3) {
-				for (let k = runStart; k < i; k++) hits.push(line[k]);
+export const findMatchGroups = (board: Board): number[][] => {
+	const visited = new Set<number>();
+	const groups: number[][] = [];
+
+	for (let start = 0; start < board.length; start++) {
+		const color = board[start];
+		if (color === null || visited.has(start)) continue;
+
+		const group: number[] = [];
+		const stack = [start];
+		visited.add(start);
+
+		while (stack.length > 0) {
+			const current = stack.pop() as number;
+			group.push(current);
+
+			for (const next of orthogonalNeighbours(current)) {
+				if (!visited.has(next) && board[next] === color) {
+					visited.add(next);
+					stack.push(next);
+				}
 			}
-			runStart = i;
+		}
+
+		if (group.length >= 3) {
+			groups.push(group.sort((a, b) => a - b));
 		}
 	}
-	return hits;
+
+	return groups.sort((a, b) => a[0] - b[0]);
 };
 
-/** All flat indices that are part of a horizontal or vertical match. */
-export const findAllMatches = (board: Board): number[] => {
-	const matched = new Set<number>();
-
-	for (let row = 0; row < WIDTH; row++) {
-		const line = Array.from({ length: WIDTH }, (_, col) =>
-			coordToIndex(row, col)
-		);
-		matchesInLine(board, line).forEach(i => matched.add(i));
-	}
-
-	for (let col = 0; col < WIDTH; col++) {
-		const line = Array.from({ length: WIDTH }, (_, row) =>
-			coordToIndex(row, col)
-		);
-		matchesInLine(board, line).forEach(i => matched.add(i));
-	}
-
-	return [...matched].sort((a, b) => a - b);
-};
+/** All flat indices that are part of an orthogonally connected match. */
+export const findAllMatches = (board: Board): number[] =>
+	findMatchGroups(board)
+		.flat()
+		.sort((a, b) => a - b);
 
 /** Convenience: does the board currently contain any match? */
 export const hasMatch = (board: Board): boolean =>

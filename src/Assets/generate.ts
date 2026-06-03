@@ -16,9 +16,15 @@ export const makeRng = (seed: number): (() => number) => {
 	};
 };
 
+const shuffledCandies = (candies: string[], rng: () => number): string[] =>
+	candies
+		.map(candy => ({ candy, rank: rng() }))
+		.sort((a, b) => a.rank - b.rank)
+		.map(({ candy }) => candy);
+
 /**
- * Fill the board candy-by-candy, never placing a candy that would complete a
- * run of three with the two cells already to its left or above it.
+ * Fill the board candy-by-candy, never placing a candy that would create an
+ * orthogonally connected same-color group of three or more.
  */
 export const generateBoard = (candies: string[], seed = 1): Board => {
 	const rng = makeRng(seed);
@@ -27,20 +33,16 @@ export const generateBoard = (candies: string[], seed = 1): Board => {
 	for (let row = 0; row < WIDTH; row++) {
 		for (let col = 0; col < WIDTH; col++) {
 			const idx = coordToIndex(row, col);
-			let pick: string;
-			let guard = 0;
-			do {
-				pick = candies[Math.floor(rng() * candies.length)];
-				guard++;
-			} while (
-				guard < 50 &&
-				((col >= 2 &&
-					board[idx - 1] === pick &&
-					board[idx - 2] === pick) ||
-					(row >= 2 &&
-						board[idx - WIDTH] === pick &&
-						board[idx - 2 * WIDTH] === pick))
-			);
+			let pick = candies[Math.floor(rng() * candies.length)];
+
+			for (const candidate of shuffledCandies(candies, rng)) {
+				board[idx] = candidate;
+				if (!hasMatch(board)) {
+					pick = candidate;
+					break;
+				}
+			}
+
 			board[idx] = pick;
 		}
 	}

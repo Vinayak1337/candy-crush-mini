@@ -29,6 +29,7 @@ import {
 	TopBar,
 	Board as BoardGrid,
 	Controls,
+	DragLayer,
 	Overlay
 } from './Gamepage.styled';
 
@@ -45,6 +46,9 @@ const seed = () => (Date.now() ^ Math.floor(Math.random() * 0xffff)) % 100000;
 const STAR_AT = [0.4, 0.7, 1];
 const SWIPE = 14; // px before a drag counts as a swipe
 const sleep = (ms: number) => new Promise(r => window.setTimeout(r, ms));
+const axisValue = (axis: 'x' | 'y', x: number, y: number) => (axis === 'x' ? x : y);
+const clamp = (value: number, min: number, max: number) =>
+	Math.max(min, Math.min(max, value));
 
 const freshBoard = (): Board => {
 	const b = generateBoard(KEYS, seed());
@@ -63,6 +67,7 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 	const [falling, setFalling] = useState<Set<number>>(new Set());
 	const [combo, setCombo] = useState('');
 	const [busy, setBusy] = useState(false);
+	const [drag, setDrag] = useState<DragState | null>(null);
 
 	// Latest board for async animation steps and gesture handlers.
 	const boardRef = useRef(board);
@@ -70,7 +75,8 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 	const selectedRef = useRef<number | null>(selected);
 	selectedRef.current = selected;
 	const busyRef = useRef(false);
-	const pointer = useRef<{ i: number; x: number; y: number } | null>(null);
+	const gridRef = useRef<HTMLDivElement | null>(null);
+	const pointer = useRef<PointerState | null>(null);
 
 	const state = useMemo(() => ({ score, movesUsed }), [score, movesUsed]);
 	const gameStatus = status(level, state);
@@ -132,6 +138,23 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 		setBusy(false);
 	}, []);
 
+	const animateRejectedMove = useCallback(async (a: number, b: number) => {
+		const start = boardRef.current;
+		const swapped = swap(start, a, b);
+
+		busyRef.current = true;
+		setBusy(true);
+		setSelected(null);
+		setBoard(swapped);
+		await sleep(130);
+		setBoard(start);
+		setInvalid(new Set([a, b]));
+		await sleep(310);
+		setInvalid(new Set());
+		busyRef.current = false;
+		setBusy(false);
+	}, []);
+
 	// Attempt to swap two cells; reject (with a shake, no move spent) if the
 	// swap makes no match.
 	const attemptMove = useCallback(
@@ -139,15 +162,13 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 			if (busyRef.current || gameStatus !== 'playing') return;
 			if (!areAdjacent(a, b)) return;
 			if (!isValidMove(boardRef.current, a, b)) {
-				// Reject: vibrate both candies left-right to say "can't match that".
-				setSelected(null);
-				setInvalid(new Set([a, b]));
-				window.setTimeout(() => setInvalid(new Set()), 420);
+				// Reject like a match-3 board: finish the swap, then snap back.
+				animateRejectedMove(a, b);
 				return;
 			}
 			animateMove(a, b);
 		},
-		[animateMove, gameStatus]
+		[animateMove, animateRejectedMove, gameStatus]
 	);
 
 	// Tap-to-select fallback (tap a candy, then an adjacent candy).
@@ -174,15 +195,107 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 		[attemptMove, gameStatus]
 	);
 
+	const getCellStep = useCallback(() => {
+		const el = gridRef.current;
+		if (!el) return 0;
+		const style = window.getComputedStyle(el);
+		const paddingX =
+			Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+		const gap = Number.parseFloat(style.columnGap || style.gap || '0');
+		return (el.clientWidth - paddingX - gap * 8) / 9 + gap;
+	}, []);
+
+	const getCellFrame = useCallback((i: number): CellFrame | null => {
+		const grid = gridRef.current;
+		const cell = grid?.querySelectorAll<HTMLButtonElement>('button.cell')[i];
+		if (!grid || !cell) return null;
+		const gridRect = grid.getBoundingClientRect();
+		const cellRect = cell.getBoundingClientRect();
+		return {
+			left: cellRect.left - gridRect.left,
+			top: cellRect.top - gridRect.top,
+			width: cellRect.width,
+			height: cellRect.height
+		};
+	}, []);
+
+	const getSwipeTarget = useCallback((origin: number, dx: number, dy: number) => {
+		const { row, col } = indexToCoord(origin);
+		let tr = row;
+		let tc = col;
+		if (Math.abs(dx) > Math.abs(dy)) tc += dx > 0 ? 1 : -1;
+		else tr += dy > 0 ? 1 : -1;
+		return inBounds(tr, tc) ? coordToIndex(tr, tc) : null;
+	}, []);
+
 	const onPointerDown = (i: number) => (e: PointerEvent) => {
-		pointer.current = { i, x: e.clientX, y: e.clientY };
+		if (busyRef.current || gameStatus !== 'playing') return;
+		e.currentTarget.setPointerCapture(e.pointerId);
+		pointer.current = {
+			i,
+			id: e.pointerId,
+			x: e.clientX,
+			y: e.clientY,
+			step: getCellStep(),
+			originFrame: getCellFrame(i)
+		};
+		setSelected(null);
+		setHint(null);
+	};
+
+	const onPointerMove = (e: PointerEvent) => {
+		const st = pointer.current;
+		if (!st || st.id !== e.pointerId || busyRef.current || gameStatus !== 'playing') {
+			return;
+		}
+		const dx = e.clientX - st.x;
+		const dy = e.clientY - st.y;
+		if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE) return;
+
+		const target = getSwipeTarget(st.i, dx, dy);
+		const targetFrame = target === null ? null : getCellFrame(target);
+		if (target === null || !st.originFrame || !targetFrame || st.step <= 0) {
+			setDrag({
+				origin: st.i,
+				target: null,
+				axis: Math.abs(dx) > Math.abs(dy) ? 'x' : 'y',
+				x: 0,
+				y: 0,
+				step: st.step,
+				originFrame: st.originFrame,
+				targetFrame: null
+			});
+			return;
+		}
+
+		const axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+		const direction = axisValue(axis, dx, dy) > 0 ? 1 : -1;
+		const distance = clamp(Math.abs(axisValue(axis, dx, dy)), 0, st.step);
+		setDrag({
+			origin: st.i,
+			target,
+			axis,
+			x: axis === 'x' ? direction * distance : 0,
+			y: axis === 'y' ? direction * distance : 0,
+			step: st.step,
+			originFrame: st.originFrame,
+			targetFrame
+		});
+	};
+
+	const resetPointer = () => {
+		pointer.current = null;
+		setDrag(null);
 	};
 
 	// Released anywhere on the board: a small move is a tap, a larger one is a
-	// swipe in one of the four directions.
+	// swipe in one of the four directions. During the swipe the two candies have
+	// already been sliding toward each other, so release simply commits/rejects it.
 	const onPointerUp = (e: PointerEvent) => {
 		const st = pointer.current;
-		pointer.current = null;
+		if (!st || st.id !== e.pointerId) return;
+		const currentDrag = drag;
+		resetPointer();
 		if (!st) return;
 		const dx = e.clientX - st.x;
 		const dy = e.clientY - st.y;
@@ -190,17 +303,13 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 			handleTap(st.i);
 			return;
 		}
-		const { row, col } = indexToCoord(st.i);
-		let tr = row;
-		let tc = col;
-		if (Math.abs(dx) > Math.abs(dy)) tc += dx > 0 ? 1 : -1;
-		else tr += dy > 0 ? 1 : -1;
-		if (!inBounds(tr, tc)) {
+		const target = currentDrag?.target ?? getSwipeTarget(st.i, dx, dy);
+		if (target === null) {
 			setSelected(null);
 			return;
 		}
 		setSelected(null);
-		attemptMove(st.i, coordToIndex(tr, tc));
+		attemptMove(st.i, target);
 	};
 
 	const showHint = () => !busyRef.current && setHint(findHint(board));
@@ -237,13 +346,21 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 				</div>
 			</TopBar>
 
-			<BoardGrid onPointerUp={onPointerUp} onPointerLeave={() => (pointer.current = null)}>
+			<BoardGrid
+				ref={gridRef}
+				onPointerMove={onPointerMove}
+				onPointerUp={onPointerUp}
+				onPointerCancel={resetPointer}
+				onLostPointerCapture={resetPointer}>
 				{combo && <div className='combo'>{combo}</div>}
 				{board.map((cell, i) => {
 					const cls = [
 						'cell',
 						selected === i ? 'selected' : '',
 						invalid.has(i) ? 'invalid' : '',
+						drag?.origin === i ? 'dragging' : '',
+						drag?.target === i ? 'drag-target' : '',
+						drag && (drag.origin === i || drag.target === i) ? 'drag-hidden' : '',
 						clearing.has(i) ? 'clearing' : '',
 						falling.has(i) ? 'falling' : '',
 						hint && (hint.a === i || hint.b === i) ? 'hint' : ''
@@ -271,6 +388,40 @@ const Gamepage: FC<GamepageProps> = ({ toggleStarted }) => {
 						</button>
 					);
 				})}
+
+				{drag &&
+					drag.target !== null &&
+					drag.originFrame &&
+					drag.targetFrame &&
+					board[drag.origin] &&
+					board[drag.target] && (
+						<DragLayer>
+							<img
+								className='drag-candy active'
+								src={CANDY[board[drag.origin] as keyof typeof CANDY]}
+								alt=''
+								style={{
+									left: drag.originFrame.left,
+									top: drag.originFrame.top,
+									width: drag.originFrame.width,
+									height: drag.originFrame.height,
+									transform: `translate3d(${drag.x}px, ${drag.y}px, 0) scale(1.08)`
+								}}
+							/>
+							<img
+								className='drag-candy target'
+								src={CANDY[board[drag.target] as keyof typeof CANDY]}
+								alt=''
+								style={{
+									left: drag.targetFrame.left,
+									top: drag.targetFrame.top,
+									width: drag.targetFrame.width,
+									height: drag.targetFrame.height,
+									transform: `translate3d(${-drag.x}px, ${-drag.y}px, 0) scale(1.02)`
+								}}
+							/>
+						</DragLayer>
+					)}
 
 				{gameStatus !== 'playing' && (
 					<Overlay className={gameStatus}>
@@ -339,4 +490,31 @@ export default Gamepage;
 
 interface GamepageProps {
 	toggleStarted: (value: boolean) => void;
+}
+
+interface PointerState {
+	i: number;
+	id: number;
+	x: number;
+	y: number;
+	step: number;
+	originFrame: CellFrame | null;
+}
+
+interface DragState {
+	origin: number;
+	target: number | null;
+	axis: 'x' | 'y';
+	x: number;
+	y: number;
+	step: number;
+	originFrame: CellFrame | null;
+	targetFrame: CellFrame | null;
+}
+
+interface CellFrame {
+	left: number;
+	top: number;
+	width: number;
+	height: number;
 }

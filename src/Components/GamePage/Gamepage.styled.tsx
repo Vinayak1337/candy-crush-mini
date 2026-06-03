@@ -212,6 +212,18 @@ export const Board = styled.div`
 		&:active {
 			cursor: grabbing;
 		}
+		&.dragging {
+			cursor: grabbing;
+			background: rgba(255, 255, 255, 0.18);
+			box-shadow: 0 9px 18px rgba(0, 0, 0, 0.4),
+				inset 0 1px 2px rgba(255, 255, 255, 0.16);
+		}
+		&.drag-target {
+			background: rgba(255, 210, 63, 0.12);
+		}
+		&.drag-hidden img {
+			opacity: 0;
+		}
 		&.selected {
 			border-color: #ffd23f;
 			background: rgba(255, 210, 63, 0.22);
@@ -247,6 +259,30 @@ export const Board = styled.div`
 		text-shadow: 0 2px 0 #e23d7a, 0 0 18px rgba(255, 143, 184, 0.9);
 		pointer-events: none;
 		animation: ${floatUp} 1.1s ease forwards;
+	}
+`;
+
+export const DragLayer = styled.div`
+	position: absolute;
+	inset: 0;
+	z-index: 8;
+	pointer-events: none;
+
+	.drag-candy {
+		position: absolute;
+		box-sizing: border-box;
+		padding: 4px;
+		object-fit: contain;
+		filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.45));
+		will-change: transform;
+	}
+
+	.drag-candy.active {
+		z-index: 2;
+	}
+
+	.drag-candy.target {
+		z-index: 1;
 	}
 `;
 
